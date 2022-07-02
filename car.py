@@ -44,7 +44,7 @@ class CarController():
         b2 = gpio.PWM(6, 30)
         
         self.duty_cycle=duty_cycle # 紀錄參數給用，預設30
-        self.last_move=0
+        self.last_move=4
     def __version__(self):
         print('beta03')
     # 以下為一些控制程式，可參考: https://wp.huangshiyang.com/pwm%E4%BD%BF%E7%94%A8-rpi-gpio-%E6%A8%A1%E5%9D%97%E7%9A%84%E8%84%89%E5%AE%BD%E8%B0%83%E5%88%B6
@@ -55,7 +55,6 @@ class CarController():
             b1.start(self.duty_cycle) # 數字從0~100 代表0~100% duty cycle，是有脈衝的時間佔週期的多少
             a2.start(self.duty_cycle) # 同個號碼(1or2)的a跟b的給電要分開(一個前進一個後退)不能一起給
             b2.start(0)  # 有脈衝就有給電，0就是完全不給電就不使用
-            time.sleep(0.1)
             self.last_move=0
     def backward(self):
         if self.last_move!=1:
@@ -64,7 +63,6 @@ class CarController():
             b1.start(0)
             a2.start(0)
             b2.start(self.duty_cycle)
-            time.sleep(0.1)
             self.last_move=1
     def left(self):
         if self.last_move!=2:
@@ -73,7 +71,6 @@ class CarController():
             b1.start(0)
             a2.start(self.duty_cycle)
             b2.start(0)
-            time.sleep(0.1)
             self.last_move=2
     def right(self):
         if self.last_move!=3:
@@ -82,7 +79,6 @@ class CarController():
             b1.start(self.duty_cycle)
             a2.start(0)
             b2.start(self.duty_cycle)
-            time.sleep(0.1)
             self.last_move=3
 
     def still(self):
