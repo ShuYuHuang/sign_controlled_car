@@ -16,7 +16,7 @@ import time
 
 
 class CarController():
-    def __init__(self,duty_cycle=30):
+    def __init__(self,duty_cycle=60):
         # 使用BCM模式，等會址定的接腳數字是根據GPIO輸出編號，而不是相對位置
         # 編號對應詳見https://ithelp.ithome.com.tw/articles/10237152
         gpio.setmode(gpio.BCM) 
