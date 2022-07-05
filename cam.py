@@ -13,8 +13,8 @@ def capture() -> None:
     
     try:
         cap = cv2.VideoCapture(0)
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 224)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 224)
         try_cap_time = 0
         while _RUNNING1:
             if cap.isOpened():
@@ -23,9 +23,17 @@ def capture() -> None:
             else:
                 print('Error: opencv open camera failed')
                 break
-            inference_image = cv2.cvtColor(src=_image, code=cv2.COLOR_BGR2BGR565)
+            cv2.putText(img=_image,
+                    text='Good camera',
+                    org=(10, 30),
+                    fontFace=cv2.FONT_HERSHEY_DUPLEX,
+                    fontScale=1,
+                    color=(200, 200, 200),
+                    thickness=1,
+                    lineType=cv2.LINE_AA)
             
     except KeyboardInterrupt:
+        
         _RUNNING1=False
     cap.release()
         
@@ -39,9 +47,10 @@ while True:
     with _LOCK:
         if None is not _image:
             cv2.imshow('Cam', _image)
+            
     if (27 == cv2.waitKey(10)) or (not _RUNNING1):
         cv2.destroyAllWindows()
         thrd_capture.join()
-        thrd_display.join()
+        _RUNNING1=False
+        
         break
-
