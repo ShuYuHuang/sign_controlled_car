@@ -186,7 +186,6 @@ def _action_function(q):
     global _ACTION_RUNNING
     while _ACTION_RUNNING:
         (pred_idx, conf) = q.get()
-        print(pred_idx, conf)
         if conf[pred_idx] > 0.9:
             action[pred_idx]()
             sleep(0.01)
