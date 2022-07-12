@@ -9,7 +9,7 @@ import argparse
 import time
 import numpy as np
 import threading
-
+from queue import Queue
 
 PWD = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(1, os.path.join(PWD, '..'))
@@ -19,11 +19,12 @@ import cv2
 
 SCPU_FW_PATH = os.path.join(PWD, '../kneron_plus/res/firmware/KL520/kdp2_fw_scpu.bin')
 NCPU_FW_PATH = os.path.join(PWD, '../kneron_plus/res/firmware/KL520/kdp2_fw_ncpu.bin')
-MODEL_FILE_PATH = os.path.join(PWD, '../kneron_plus/res/models/KL520/mobilnet_v2/models_520.nef')
+MODEL_FILE_PATH = os.path.join(PWD, 'model/models_520.nef')
 
 _LOCK = threading.Lock()
 _SEND_RUNNING = True
 _RECEIVE_RUNNING = True
+_ACTION_RUNNING = True
 
 _image_to_inference = None
 _image_to_show = None
@@ -103,7 +104,7 @@ def _image_send_function(_device_group: kp.DeviceGroup) -> None:
 
 
 def _result_receive_function(_device_group: kp.DeviceGroup,
-                             _model_nef_descriptor: kp.ModelNefDescriptor) -> None:
+                             _model_nef_descriptor: kp.ModelNefDescriptor, q) -> None:
     global _image_to_show, _generic_raw_image_header, _RECEIVE_RUNNING
     _loop = 0
     _fps = 0
@@ -138,10 +139,10 @@ def _result_receive_function(_device_group: kp.DeviceGroup,
         pred_idx = int(inf_node_output_list[0].ndarray.argmax(1))
         if conf[pred_idx] > 0.9:
             pred_text = class_name[pred_idx] + ', ' + str(round(conf[pred_idx], 2))
-            action[pred_idx]()
-            sleep(0.01)
         else:
             pred_text = 'Background'
+            
+        q.put((pred_idx, conf))
             
         time_end = time.time()
 
@@ -180,6 +181,20 @@ def _result_receive_function(_device_group: kp.DeviceGroup,
             _image_to_show = temp_image.copy()
 
     _RECEIVE_RUNNING = False
+    
+def _action_function(q):
+    global _ACTION_RUNNING
+    while _ACTION_RUNNING:
+        (pred_idx, conf) = q.get()
+        if conf[pred_idx] > 0.9:
+            action[pred_idx]()
+            sleep(0.01)
+        else:
+            action[3]()
+            sleep(0.01)
+            
+    _ACTION_RUNNING = False
+
 
 
 if __name__ == '__main__':
@@ -250,6 +265,8 @@ if __name__ == '__main__':
         padding_mode=kp.PaddingMode.KP_PADDING_CORNER,
         normalize_mode=kp.NormalizeMode.KP_NORMALIZE_KNERON
     )
+    
+    q = Queue()
 
     """
     starting inference work
@@ -257,12 +274,12 @@ if __name__ == '__main__':
     print('[Starting Inference Work]')
     print(' - Starting inference')
     send_thread = threading.Thread(target=_image_send_function, args=(device_group,))
-    receive_thread = threading.Thread(target=_result_receive_function, args=(device_group, model_nef_descriptor))
-    # action_thread = threading.Thread(target=_action_function)
+    receive_thread = threading.Thread(target=_result_receive_function, args=(device_group, model_nef_descriptor, q))
+    action_thread = threading.Thread(target=_action_function, args=(q,))
 
     send_thread.start()
     receive_thread.start()
-    # action_thread.start()
+    action_thread.start()
 
     cv2.namedWindow('Generic Inference', cv2.WND_PROP_ASPECT_RATIO or cv2.WINDOW_GUI_EXPANDED)
     cv2.setWindowProperty('Generic Inference', cv2.WND_PROP_ASPECT_RATIO, cv2.WND_PROP_ASPECT_RATIO)
@@ -272,13 +289,14 @@ if __name__ == '__main__':
             if None is not _image_to_show:
                 cv2.imshow('Generic Inference', _image_to_show)
 
-        if (27 == cv2.waitKey(10)) or (not _SEND_RUNNING) or (not _RECEIVE_RUNNING):
+        if (27 == cv2.waitKey(10)) or (not _SEND_RUNNING) or (not _RECEIVE_RUNNING) or (not _ACTION_RUNNING):
             break
 
     cv2.destroyAllWindows()
 
     _SEND_RUNNING = False
     _RECEIVE_RUNNING = False
+    _ACTION_RUNNING = False
 
     send_thread.join()
     receive_thread.join()
